@@ -1,0 +1,94 @@
+--- 
+- hosts: all
+  become: yes
+
+
+  tasks:
+    - name: Update and Upgrade all packages
+      apt:
+        upgrade: dist
+        update_cache: yes
+
+    - name: Ensure all dependency packages are installed
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: true
+      vars:
+        packages:
+        - python3-pip
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg2
+        - software-properties-common
+        
+
+    - name: Install pip through ansible role
+      include_role:
+        name: geerlingguy.pip
+
+
+
+    - name: Install docker through ansible role
+      include_role:
+        name: geerlingguy.docker
+      vars:
+        docker_users:
+          - "{{ username }}"
+
+    - name: Identify the backup storage
+      shell: lsblk -o NAME,UUID | grep 'sd[a-z]' | awk '{print $2}'
+      register: usb_uuid
+      changed_when: false
+
+
+    - name: Create a Mount Point for the backup storage
+      file:
+        path: /media/vault
+        state: directory
+
+    - name: Add the backup storage mountpoint to fstab
+      ansible.posix.mount:
+        path: /media/vault
+        src: UUID="{{ usb_uuid.stdout_lines[0] }}"
+        fstype: exfat
+        opts: defaults,auto,users,rw,nofail
+        state: present
+
+    - name: Mount all filesystems mentioned in fstab
+      command: mount -a
+
+
+    - name: Enable automatic security updates
+      apt:
+        name: unattended-upgrades
+        state: latest
+        update_cache: yes
+        autoremove: yes
+        autoclean: yes
+        dpkg_options: 'force-confdef'
+        only_upgrade: yes
+
+    - name: Build Docker image
+      command: docker build -t backup-image:latest .
+
+    - name: Copy service account key
+      copy:
+        src: /path/to/your/service_account.json
+        dest: /path/on/docker/host/service_account.json
+        mode: '0600'
+
+    - name: Run the backup container
+      docker_container:
+        name: backup-container
+        image: backup-image:latest
+        state: started
+        restart_policy: always
+        env:
+          GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
+          GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
+          GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
+          SERVICE_ACCOUNT_FILE: "/app/service_account.json"
+        volumes:
+          - "/path/on/docker/host:/app:rw"
