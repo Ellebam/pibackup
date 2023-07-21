@@ -1,7 +1,7 @@
 include .env
-.PHONY: venv install  run-playbooks clean docker-build docker-run
+.PHONY: venv install  run-playbooks clean docker-build docker-run run-rclone-copy
 
-export USERNAME GMAIL_USERNAME GMAIL_PASSWORD GMAIL_RECEIVER SERVICE_ACCOUNT_FILE
+export 
 
 venv:
 	python3 -m venv venv
@@ -26,27 +26,38 @@ run-playbooks: install
 		-u ellebam\
 		--extra-vars "username=${USERNAME}"\
 		-e 'ansible_ssh_extra_args="-o StrictHostKeyChecking=no"'\
-		setup-backup-server.yml 
+		setup-backup-server.yml --start-at-task "List available drives"
 
 
 clean:
 	rm -rf venv
 	echo "Cleaned up virtual environment."
 
-
+run-rclone-ls:
+	cd app && rclone -vv --config rclone.conf lsd mygdrive: --drive-shared-with-me
+run-rclone-copy: 
+	rm -rf testbackups/*
+	cd app && rclone copy -v --config rclone.conf --drive-shared-with-me mygdrive:'ellebam' testbackups/
+	echo "Synced files from Google Drive to testbackups folder."
 
 docker-build:
 	docker build -t backup-image:latest app/
 
-docker-run:
-	mkdir -p testbackups
+docker-run: docker-build
+	mkdir -p tempbackups
+	mkdir -p backups
 	docker container prune -f
-	docker run -d --name backup-test \
-		-v ${PWD}/testbackups:/app/backup \
-		-e GMAIL_USERNAME="${GMAIL_USERNAME}" \
-		-e GMAIL_PASSWORD="${GMAIL_PASSWORD}" \
-		-e GMAIL_RECEIVER="${GMAIL_RECEIVER}" \
-		-e SERVICE_ACCOUNT_FILE="${SERVICE_ACCOUNT_FILE}" \
-		backup-image:latest 
+	docker run -d --name=backup-container \
+	--env-file .env \
+	-v ${PWD}/tempbackups:/tempbackups \
+	-v ${PWD}/backups:/backups \
+	backup-image:latest
+
 
 docker-full-rebuild: docker-build docker-run
+
+run-python-script:
+	 cd app && ../venv/bin/python backups.py
+
+generate-test-backups:
+	bash generate_test_backups.sh

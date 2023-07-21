@@ -24,6 +24,7 @@ ehthumbs.db
 Thumbs.db
 
 # Serviceaccount Credentials File
-.serviceaccount.json
+app/serviceaccount.json
 
-testbackups/
+tempbackups/
+backups/

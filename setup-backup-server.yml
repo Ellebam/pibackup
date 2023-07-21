@@ -1,6 +1,6 @@
 --- 
-- hosts: all
-  become: yes
+- hosts: grudge
+  become: true
 
 
   tasks:
@@ -37,11 +37,19 @@
         docker_users:
           - "{{ username }}"
 
-    - name: Identify the backup storage
-      shell: lsblk -o NAME,UUID | grep 'sd[a-z]' | awk '{print $2}'
-      register: usb_uuid
+    - name: List available drives
+      shell: lsblk -o NAME,SIZE,MOUNTPOINT,MODEL,UUID 
+      register: drives_output
       changed_when: false
 
+    - name: Display drives
+      debug:
+        msg: "{{ drives_output.stdout_lines }}"
+
+    - name: Pause for drive selection
+      pause:
+        prompt: "Please enter the UUID of the drive to use for backup storage:"
+      register: selected_drive
 
     - name: Create a Mount Point for the backup storage
       file:
@@ -51,7 +59,7 @@
     - name: Add the backup storage mountpoint to fstab
       ansible.posix.mount:
         path: /media/vault
-        src: UUID="{{ usb_uuid.stdout_lines[0] }}"
+        src: UUID="{{ selected_drive.user_input }}"
         fstype: exfat
         opts: defaults,auto,users,rw,nofail
         state: present
@@ -70,25 +78,33 @@
         dpkg_options: 'force-confdef'
         only_upgrade: yes
 
-    - name: Build Docker image
-      command: docker build -t backup-image:latest .
 
-    - name: Copy service account key
-      copy:
-        src: /path/to/your/service_account.json
-        dest: /path/on/docker/host/service_account.json
-        mode: '0600'
+#    - name: Copy local files to remote server
+#      copy:
+#       src: ./app
+ #       dest: /media/vault
+  #      mode: 0755
+#
+ #   - name: Build Docker image
+  #    command: cd /media/vault && docker build -t backup-image:latest .
+#
+ #   - name: Copy service account key
+  #    copy:
+   #     src: serviceaccount.json
+    #    dest: /path/on/docker/host/service_account.json
+     #   mode: '0600'
 
-    - name: Run the backup container
-      docker_container:
-        name: backup-container
-        image: backup-image:latest
-        state: started
-        restart_policy: always
-        env:
-          GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
-          GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
-          GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
-          SERVICE_ACCOUNT_FILE: "/app/service_account.json"
-        volumes:
-          - "/path/on/docker/host:/app:rw"
+  #  - name: Run the backup container
+  #    docker_container:
+  #      name: backup-container
+   #     image: backup-image:latest
+    #    state: started
+     #   restart_policy: always
+      #  env:
+      #    GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
+       #   GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
+       #   GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
+       #   SERVICE_ACCOUNT_FILE: "/app/service_account.json"
+       # volumes:
+       #   - "/backups/vault:/app:rw"
+          
