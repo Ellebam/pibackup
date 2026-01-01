@@ -79,32 +79,32 @@
         only_upgrade: yes
 
 
-#    - name: Copy local files to remote server
-#      copy:
-#       src: ./app
- #       dest: /media/vault
-  #      mode: 0755
-#
- #   - name: Build Docker image
-  #    command: cd /media/vault && docker build -t backup-image:latest .
-#
- #   - name: Copy service account key
-  #    copy:
-   #     src: serviceaccount.json
-    #    dest: /path/on/docker/host/service_account.json
-     #   mode: '0600'
+    - name: Copy local files to remote server
+      copy:
+        src: ./app
+        dest: /media/vault
+        mode: 0755
 
-  #  - name: Run the backup container
-  #    docker_container:
-  #      name: backup-container
-   #     image: backup-image:latest
-    #    state: started
-     #   restart_policy: always
-      #  env:
-      #    GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
-       #   GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
-       #   GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
-       #   SERVICE_ACCOUNT_FILE: "/app/service_account.json"
-       # volumes:
-       #   - "/backups/vault:/app:rw"
+    - name: Build Docker image
+      command: cd /media/vault && docker build -t backup-image:latest .
+
+    - name: Copy service account key
+      copy:
+        src: serviceaccount.json
+        dest: /path/on/docker/host/service_account.json
+        mode: '0600'
+
+    - name: Run the backup container
+      docker_container:
+        name: backup-container
+        image: backup-image:latest
+        state: started
+        restart_policy: always
+        env:
+          GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
+          GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
+          GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
+          SERVICE_ACCOUNT_FILE: "/app/service_account.json"
+        volumes:
+          - "/backups/vault:/app:rw"
           
