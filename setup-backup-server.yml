@@ -85,6 +85,12 @@
         dest: /media/vault
         mode: 0755
 
+    - name: Copy local .env file to remote server
+      copy:
+        src: .env
+        dest: /media/vault/.env
+        mode: '0600' 
+
     - name: Build Docker image
       command: cd /media/vault && docker build -t backup-image:latest .
 
@@ -100,11 +106,11 @@
         image: backup-image:latest
         state: started
         restart_policy: always
+        env_file: /media/vault/.env
         env:
-          GMAIL_USERNAME: "{{ lookup('env', 'GMAIL_USERNAME') }}"
-          GMAIL_PASSWORD: "{{ lookup('env', 'GMAIL_PASSWORD') }}"
-          GMAIL_RECEIVER: "{{ lookup('env', 'GMAIL_RECEIVER') }}"
           SERVICE_ACCOUNT_FILE: "/app/service_account.json"
         volumes:
-          - "/backups/vault:/app:rw"
+          - "/media/vault/tempbackups:/tempbackups"
+          - "/media/vault/backups:/backups"
+          # - "/backups/vault:/app:rw"
           
