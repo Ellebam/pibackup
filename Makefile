@@ -5,7 +5,9 @@ export
 
 venv:
 	python3 -m venv venv
-	echo "Virtual environment created. Activate with 'source venv/bin/activate'."
+	./venv/bin/pip install --upgrade pip
+	./venv/bin/pip install -r requirements.txt
+	echo "Virtual environment created and dependencies installed."
 
 install-collections: venv
 	mkdir -p ./venv/collections
@@ -15,18 +17,16 @@ install-roles: venv
 	mkdir -p ./venv/roles
 	source venv/bin/activate && ansible-galaxy role install -r requirements.yml -p ./venv/roles
 
-
 install: install-collections install-roles
-	./venv/bin/pip install -r requirements.txt
-	echo "Dependencies installed."
+	echo "All installations complete."
 
 
 run-playbooks: install
-	./venv/bin/ansible-playbook -i grudge,\
-		-u ellebam\
+	./venv/bin/ansible-playbook setup-backup-server.yml -i 192.168.178.80, \
+		-u ellebam \
 		--extra-vars "username=${USERNAME}"\
-		-e 'ansible_ssh_extra_args="-o StrictHostKeyChecking=no"'\
-		setup-backup-server.yml --start-at-task "List available drives"
+		-e 'ansible_ssh_extra_args="-o StrictHostKeyChecking=no"'
+		
 
 
 clean:

@@ -1,5 +1,5 @@
 --- 
-- hosts: grudge
+- hosts: 192.168.178.80
   become: true
 
 
@@ -24,18 +24,16 @@
         - software-properties-common
         
 
-    - name: Install pip through ansible role
-      include_role:
-        name: geerlingguy.pip
+    # - name: Install pip through ansible role
+    #   include_role:
+    #     name: geerlingguy.pip
 
-
-
-    - name: Install docker through ansible role
-      include_role:
-        name: geerlingguy.docker
-      vars:
-        docker_users:
-          - "{{ username }}"
+    # - name: Install docker through ansible role
+    #   include_role:
+    #     name: geerlingguy.docker
+    #   vars:
+    #     docker_users:
+    #       - "{{ username }}"
 
     - name: List available drives
       shell: lsblk -o NAME,SIZE,MOUNTPOINT,MODEL,UUID 
@@ -60,8 +58,8 @@
       ansible.posix.mount:
         path: /media/vault
         src: UUID="{{ selected_drive.user_input }}"
-        fstype: exfat
-        opts: defaults,auto,users,rw,nofail
+        fstype: ext4
+        opts: defaults,auto,users,rw,nofail,x-systemd.device-timeout=10
         state: present
 
     - name: Mount all filesystems mentioned in fstab
@@ -92,13 +90,9 @@
         mode: '0600' 
 
     - name: Build Docker image
-      command: cd /media/vault && docker build -t backup-image:latest .
-
-    - name: Copy service account key
-      copy:
-        src: serviceaccount.json
-        dest: /path/on/docker/host/service_account.json
-        mode: '0600'
+      command: docker build -t backup-image:latest .
+      args:
+        chdir: /media/vault/app
 
     - name: Run the backup container
       docker_container:
